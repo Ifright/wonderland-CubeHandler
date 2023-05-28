@@ -14366,6 +14366,183 @@ __publicField(WasdControlsComponent, "Properties", {
   headObject: { type: Type.Object }
 });
 
+// js/CubeFlying.js
+var CubeFlying = class extends Component {
+  init() {
+    console.log("init() with param", this.param);
+    this.rotation = new Float32Array(4);
+    quat_exports.fromEuler(this.rotation, 1, 1, 0);
+    this.cubeQuat = quat_exports.create();
+    this.direction = vec3_exports.create();
+    this.cubeVec = vec3_exports.create();
+    this.cameraVec = vec3_exports.create();
+  }
+  start() {
+    console.log("start() with param", this.param);
+    this.cube = this.object;
+    console.log("Object ready for action. Object name: " + this.cube.name);
+    this.spawn();
+  }
+  update(dt) {
+    quat_exports.scale(this.cubeQuat, this.rotation, dt);
+    this.cube.rotateObject(this.cubeQuat);
+    if (this.vrCamera && this.cubeVec && this.cameraVec) {
+      vec3_exports.copy(this.cubeVec, this.direction);
+      vec3_exports.scale(this.cubeVec, this.cubeVec, dt);
+      this.cube.translateLocal(this.cubeVec);
+      if (this.angleBetweenCubeAndCamera() > Math.PI / 2) {
+        this.spawn();
+      }
+    }
+  }
+  angleBetweenCubeAndCamera() {
+    this.cube.getPositionWorld(this.cubeVec);
+    this.vrCamera.getTranslationWorld(this.cameraVec);
+    vec3_exports.subtract(this.cubeVec, this.cubeVec, this.cameraVec);
+    vec3_exports.normalize(this.cubeVec, this.cubeVec);
+    this.vrCamera.getForward(this.cameraVec);
+    return vec3_exports.angle(this.cubeVec, this.cameraVec);
+  }
+  spawn() {
+    if (this.vrCamera == null) {
+      console.varn("Can't define player position");
+      return;
+    }
+    this.vrCamera.getForward(this.direction);
+    vec3_exports.copy(this.cubeVec, this.direction);
+    vec3_exports.scale(this.cubeVec, this.cubeVec, 30);
+    this.vrCamera.getPositionWorld(this.cameraVec);
+    vec3_exports.add(this.cubeVec, this.cubeVec, this.cameraVec);
+    this.cube.setPositionWorld(this.cubeVec);
+    vec3_exports.scale(this.direction, this.direction, -this.speed);
+  }
+  S;
+};
+__publicField(CubeFlying, "TypeName", "CubeFlying");
+/* Properties that are configurable in the editor */
+__publicField(CubeFlying, "Properties", {
+  param: Property.float(1),
+  vrCamera: Property.object(null),
+  speed: Property.float(5)
+});
+/* Add other component types here that your component may
+ * create. They will be registered with this component */
+__publicField(CubeFlying, "Dependencies", []);
+
+// js/CubeGame.js
+var CubeGame = class extends Component {
+  init() {
+    console.log("init() with param", this.param);
+    this.rotation = new Float32Array(4);
+    quat_exports.fromEuler(this.rotation, this.rotationX, this.rotationY, this.rotationZ);
+    this.cubeQuat = quat_exports.create();
+    this.direction = vec3_exports.create();
+    this.cubeVec = vec3_exports.create();
+    this.cameraVec = vec3_exports.create();
+    this.count = 0;
+    this.missCount = 0;
+    this.hitCount = 0;
+  }
+  start() {
+    console.log("start() with param", this.param);
+    if (this.countSpawnText) {
+      this.spawnValue = this.countSpawnText.getComponent("text");
+    }
+    if (this.countHitText) {
+      this.hitValue = this.countHitText.getComponent("text");
+    }
+    if (this.countMissText) {
+      this.missValue = this.countMissText.getComponent("text");
+    }
+    this.cube = this.object;
+    console.log("Object ready for action. Object name: " + this.cube.name);
+    this.spawn();
+  }
+  update(dt) {
+    quat_exports.scale(this.cubeQuat, this.rotation, dt);
+    if (this.canRotate === true)
+      this.cube.rotateObject(this.cubeQuat);
+    if (this.vrCamera && this.cubeVec && this.cameraVec) {
+      vec3_exports.copy(this.cubeVec, this.direction);
+      vec3_exports.scale(this.cubeVec, this.cubeVec, dt);
+      this.cube.translateLocal(this.cubeVec);
+      if (this.angleBetweenCubeAndCamera() > Math.PI / 2) {
+        const dist2 = this.distanceBetweenCubeAndCamera();
+        const cubeSize = this.cube.getScalingLocal()[0];
+        const headSize = 0.3;
+        if (cubeSize / 2 + headSize / 2 < dist2) {
+          this.updateMissCount(++this.missCount);
+        } else {
+          this.updateHitCount(++this.hitCount);
+        }
+        this.spawn();
+      }
+    }
+  }
+  angleBetweenCubeAndCamera() {
+    this.cube.getPositionWorld(this.cubeVec);
+    this.vrCamera.getTranslationWorld(this.cameraVec);
+    vec3_exports.subtract(this.cubeVec, this.cubeVec, this.cameraVec);
+    vec3_exports.normalize(this.cubeVec, this.cubeVec);
+    this.vrCamera.getForward(this.cameraVec);
+    return vec3_exports.angle(this.cubeVec, this.cameraVec);
+  }
+  distanceBetweenCubeAndCamera() {
+    this.cube.getPositionWorld(this.cubeVec);
+    this.vrCamera.getPositionWorld(this.cameraVec);
+    return vec3_exports.distance(this.cubeVec, this.cameraVec);
+  }
+  spawn() {
+    if (this.vrCamera == null) {
+      console.warn("Can't define player position");
+      return;
+    }
+    this.vrCamera.getForward(this.direction);
+    vec3_exports.copy(this.cubeVec, this.direction);
+    vec3_exports.scale(this.cubeVec, this.cubeVec, this.initialDistance);
+    this.vrCamera.getPositionWorld(this.cameraVec);
+    vec3_exports.add(this.cubeVec, this.cubeVec, this.cameraVec);
+    this.cube.setPositionWorld(this.cubeVec);
+    vec3_exports.scale(this.direction, this.direction, -this.speed);
+    this.updateCount(++this.count);
+  }
+  updateCount(value) {
+    if (!this.spawnValue)
+      return;
+    this.spawnValue.text = value.toString();
+    console.log(`updated count value to: ${value}`);
+  }
+  updateHitCount(value) {
+    if (!this.hitValue)
+      return;
+    this.hitValue.text = value.toString();
+    console.log(`updated hit value to: ${value}`);
+  }
+  updateMissCount(value) {
+    if (!this.missValue)
+      return;
+    this.missValue.text = value.toString();
+    console.log(`updated miss value to: ${value}`);
+  }
+};
+__publicField(CubeGame, "TypeName", "CubeGame");
+/* Properties that are configurable in the editor */
+__publicField(CubeGame, "Properties", {
+  vrCamera: Property.object(null),
+  speed: Property.float(5),
+  initialDistance: Property.float(30),
+  canRotate: Property.bool(true),
+  rotationX: Property.float(1),
+  rotationY: Property.float(1),
+  rotationZ: Property.float(1),
+  countSpawnText: Property.object(),
+  countHitText: Property.object(),
+  countMissText: Property.object()
+});
+/* Add other component types here that your component may
+ * create. They will be registered with this component */
+__publicField(CubeGame, "Dependencies", []);
+
 // js/CubeHandler.js
 var CubeHandler = class extends Component {
   init() {
@@ -14392,74 +14569,6 @@ __publicField(CubeHandler, "Properties", {
 /* Add other component types here that your component may
  * create. They will be registered with this component */
 __publicField(CubeHandler, "Dependencies", []);
-
-// js/button.js
-function hapticFeedback(object, strength, duration) {
-  const input = object.getComponent("input");
-  if (input && input.xrInputSource) {
-    const gamepad = input.xrInputSource.gamepad;
-    if (gamepad && gamepad.hapticActuators)
-      gamepad.hapticActuators[0].pulse(strength, duration);
-  }
-}
-var ButtonComponent = class extends Component {
-  /* Position to return to when "unpressing" the button */
-  returnPos = new Float32Array(3);
-  start() {
-    this.mesh = this.buttonMeshObject.getComponent(MeshComponent);
-    this.defaultMaterial = this.mesh.material;
-    this.buttonMeshObject.getTranslationLocal(this.returnPos);
-    const target = this.object.getComponent(CursorTarget) || this.object.addComponent(CursorTarget);
-    target.addHoverFunction(this.onHover.bind(this));
-    target.addUnHoverFunction(this.onUnHover.bind(this));
-    target.addDownFunction(this.onDown.bind(this));
-    target.addUpFunction(this.onUp.bind(this));
-    this.soundClick = this.object.addComponent(HowlerAudioSource, {
-      src: "sfx/click.wav",
-      spatial: true
-    });
-    this.soundUnClick = this.object.addComponent(HowlerAudioSource, {
-      src: "sfx/unclick.wav",
-      spatial: true
-    });
-  }
-  /* Called by 'cursor-target' */
-  onHover(_, cursor) {
-    this.mesh.material = this.hoverMaterial;
-    if (cursor.type === "finger-cursor") {
-      this.onDown(_, cursor);
-    }
-    hapticFeedback(cursor.object, 0.5, 50);
-  }
-  /* Called by 'cursor-target' */
-  onDown(_, cursor) {
-    this.soundClick.play();
-    this.buttonMeshObject.translate([0, -0.1, 0]);
-    hapticFeedback(cursor.object, 1, 20);
-  }
-  /* Called by 'cursor-target' */
-  onUp(_, cursor) {
-    this.soundUnClick.play();
-    this.buttonMeshObject.setTranslationLocal(this.returnPos);
-    hapticFeedback(cursor.object, 0.7, 20);
-  }
-  /* Called by 'cursor-target' */
-  onUnHover(_, cursor) {
-    this.mesh.material = this.defaultMaterial;
-    if (cursor.type === "finger-cursor") {
-      this.onUp(_, cursor);
-    }
-    hapticFeedback(cursor.object, 0.3, 50);
-  }
-};
-__publicField(ButtonComponent, "TypeName", "button");
-__publicField(ButtonComponent, "Properties", {
-  buttonMeshObject: Property.object(),
-  hoverMaterial: Property.material()
-});
-__publicField(ButtonComponent, "Dependencies", [
-  HowlerAudioSource
-]);
 
 // js/index.js
 var RuntimeOptions = {
@@ -14503,7 +14612,6 @@ if (document.readyState === "loading") {
   setupButtonsXR();
 }
 engine.registerComponent(Cursor);
-engine.registerComponent(CursorTarget);
 engine.registerComponent(FingerCursor);
 engine.registerComponent(HandTracking);
 engine.registerComponent(HowlerAudioListener);
@@ -14511,8 +14619,9 @@ engine.registerComponent(MouseLookComponent);
 engine.registerComponent(PlayerHeight);
 engine.registerComponent(TeleportComponent);
 engine.registerComponent(VrModeActiveSwitch);
+engine.registerComponent(CubeFlying);
+engine.registerComponent(CubeGame);
 engine.registerComponent(CubeHandler);
-engine.registerComponent(ButtonComponent);
 engine.scene.load(`${Constants.ProjectName}.bin`);
 /*! Bundled license information:
 
